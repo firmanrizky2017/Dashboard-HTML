@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alur Entri Data Geospasial — JIGN Kabupaten Sanggau</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0f1e;
+    --bg2:       #0f172a;
+    --panel:     #111827;
+    --border:    #1e3a5f;
+    --blue:      #2563eb;
+    --blue-lt:   #3b82f6;
+    --cyan:      #06b6d4;
+    --green:     #10b981;
+    --orange:    #f59e0b;
+    --red:       #ef4444;
+    --purple:    #8b5cf6;
+    --text:      #e2e8f0;
+    --text-dim:  #64748b;
+    --text-mid:  #94a3b8;
+    --mono:      'Courier New', monospace;
+    --sans:      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(37,99,235,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,99,235,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  html { zoom: 0.55; }
+
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .header-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .15em;
+    color: var(--cyan);
+    background: rgba(6,182,212,.08);
+    border: 1px solid rgba(6,182,212,.25);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: clamp(22px, 4vw, 32px);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #e2e8f0 40%, #60a5fa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p {
+    font-size: 14px;
+    color: var(--text-mid);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+  .leg-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-mid);
+    font-family: var(--mono);
+  }
+  .leg-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── LANE WRAPPER ── */
+  .lanes {
+    display: grid;
+    grid-template-columns: 180px 1fr 180px;
+    gap: 0;
+    align-items: start;
+  }
+
+  .lane-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    color: var(--text-dim);
+    padding: 8px 0;
+    text-align: center;
+    position: sticky; top: 20px;
+  }
+  .lane-label span {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-mid);
+    margin-top: 4px;
+  }
+
+  /* ── FLOW COLUMN ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 0 8px;
+  }
+
+  /* ── SECTION DIVIDER ── */
+  .section-div {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0 4px;
+  }
+  .section-div-line {
+    flex: 1; height: 1px; background: var(--border);
+  }
+  .section-div-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--text-dim);
+    white-space: nowrap;
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg2);
+  }
+
+  /* ── NODE ── */
+  .node {
+    width: 100%;
+    max-width: 560px;
+    border-radius: 6px;
+    padding: 16px 20px;
+    position: relative;
+    transition: transform .2s, box-shadow .2s;
+    cursor: default;
+  }
+  .node:hover {
+    transform: translateY(-2px);
+  }
+
+  /* node types */
+  .node-actor {
+    background: linear-gradient(135deg, #0f2744, #0a1a35);
+    border: 1px solid var(--blue);
+    box-shadow: 0 0 20px rgba(37,99,235,.15), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .node-actor:hover { box-shadow: 0 0 30px rgba(37,99,235,.3); }
+
+  .node-tool {
+    background: linear-gradient(135deg, #0a2218, #061610);
+    border: 1px solid var(--green);
+    box-shadow: 0 0 20px rgba(16,185,129,.12), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .node-tool:hover { box-shadow: 0 0 30px rgba(16,185,129,.25); }
+
+  .node-platform {
+    background: linear-gradient(135deg, #1e1040, #130a30);
+    border: 1px solid var(--purple);
+    box-shadow: 0 0 20px rgba(139,92,246,.15), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .node-platform:hover { box-shadow: 0 0 30px rgba(139,92,246,.3); }
+
+  .node-national {
+    background: linear-gradient(135deg, #1a1200, #0f0b00);
+    border: 1px solid var(--orange);
+    box-shadow: 0 0 20px rgba(245,158,11,.15), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .node-national:hover { box-shadow: 0 0 30px rgba(245,158,11,.3); }
+
+  .node-verify {
+    background: linear-gradient(135deg, #1a0808, #100505);
+    border: 1px solid var(--red);
+    box-shadow: 0 0 20px rgba(239,68,68,.12), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .node-csw {
+    background: linear-gradient(135deg, #001a1f, #00121a);
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 20px rgba(6,182,212,.15), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .node-csw:hover { box-shadow: 0 0 30px rgba(6,182,212,.3); }
+
+  .node-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .12em;
+    margin-bottom: 6px;
+    opacity: .7;
+  }
+  .node-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .node-sub {
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.5;
+  }
+  .node-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-top: 8px;
+    margin-right: 4px;
+  }
+
+  /* color helpers */
+  .c-blue   { color: #60a5fa; }
+  .c-green  { color: #34d399; }
+  .c-orange { color: #fbbf24; }
+  .c-purple { color: #a78bfa; }
+  .c-cyan   { color: #22d3ee; }
+  .c-red    { color: #f87171; }
+
+  .bg-blue   { background: rgba(37,99,235,.2);  color: #93c5fd; border: 1px solid rgba(37,99,235,.4); }
+  .bg-green  { background: rgba(16,185,129,.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,.4); }
+  .bg-orange { background: rgba(245,158,11,.2); color: #fcd34d; border: 1px solid rgba(245,158,11,.4); }
+  .bg-purple { background: rgba(139,92,246,.2); color: #c4b5fd; border: 1px solid rgba(139,92,246,.4); }
+  .bg-cyan   { background: rgba(6,182,212,.2);  color: #67e8f9; border: 1px solid rgba(6,182,212,.4); }
+  .bg-red    { background: rgba(239,68,68,.2);  color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+
+  /* ── ARROW ── */
+  .arrow-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px 0;
+    width: 100%;
+    max-width: 560px;
+  }
+  .arrow-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 2px 10px;
+    border-radius: 2px;
+    margin-bottom: -1px;
+    z-index: 1;
+    white-space: nowrap;
+  }
+  .arrow-line {
+    width: 2px;
+    height: 28px;
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 10px solid;
+  }
+  .arrow-blue  .arrow-line { background: linear-gradient(to bottom, var(--blue), var(--blue-lt)); }
+  .arrow-blue  .arrow-line::after { border-top-color: var(--blue-lt); }
+  .arrow-green .arrow-line { background: linear-gradient(to bottom, var(--green), #34d399); }
+  .arrow-green .arrow-line::after { border-top-color: #34d399; }
+  .arrow-orange .arrow-line { background: linear-gradient(to bottom, var(--orange), #fbbf24); }
+  .arrow-orange .arrow-line::after { border-top-color: #fbbf24; }
+  .arrow-purple .arrow-line { background: linear-gradient(to bottom, var(--purple), #a78bfa); }
+  .arrow-purple .arrow-line::after { border-top-color: #a78bfa; }
+  .arrow-cyan .arrow-line { background: linear-gradient(to bottom, var(--cyan), #22d3ee); }
+  .arrow-cyan .arrow-line::after { border-top-color: #22d3ee; }
+  .arrow-red .arrow-line { background: linear-gradient(to bottom, var(--red), #f87171); }
+  .arrow-red .arrow-line::after { border-top-color: #f87171; }
+
+  /* ── MULTI-OPD BLOCK ── */
+  .opd-grid {
+    width: 100%;
+    max-width: 560px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  .opd-card {
+    background: rgba(15,23,42,.8);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    transition: border-color .2s;
+  }
+  .opd-card:hover { border-color: var(--blue-lt); }
+  .opd-icon { font-size: 18px; flex-shrink: 0; }
+  .opd-name { font-weight: 600; font-size: 12px; }
+  .opd-type { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+
+  /* ── BIFURCATION ── */
+  .bifurc {
+    width: 100%; max-width: 560px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 4px 0;
+  }
+  .bifurc-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bifurc-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .1em;
+    color: var(--text-dim); margin-bottom: 2px; text-align: center;
+  }
+
+  /* ── FORK LINE ── */
+  .fork {
+    width: 100%; max-width: 560px;
+    height: 24px;
+    position: relative;
+    margin: 0;
+  }
+  .fork::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-1px);
+    width: 2px; height: 50%;
+    background: var(--blue-lt);
+  }
+  .fork::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 25%;
+    width: 50%; height: 2px;
+    background: var(--blue-lt);
+  }
+  .fork-end {
+    width: 100%; max-width: 560px;
+    height: 24px;
+    position: relative;
+  }
+  .fork-end::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 25%;
+    width: 50%; height: 2px;
+    background: var(--orange);
+  }
+  .fork-end::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-1px);
+    width: 2px; height: 100%;
+    background: var(--orange);
+  }
+
+  /* ── NOTE BOX ── */
+  .note-box {
+    width: 100%; max-width: 560px;
+    background: rgba(245,158,11,.06);
+    border: 1px solid rgba(245,158,11,.2);
+    border-left: 3px solid var(--orange);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.6;
+    margin: 4px 0;
+  }
+  .note-box strong { color: #fbbf24; }
+
+  /* ── SIDE ANNOTATIONS ── */
+  .side-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    line-height: 1.5;
+    padding: 8px 12px;
+    border-left: 2px solid var(--border);
+    margin-top: 12px;
+  }
+  .side-note span { display: block; color: var(--text-mid); font-weight: 600; margin-bottom: 4px; }
+
+  /* ── TOOL LIST ── */
+  .tool-list {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 8px;
+  }
+  .tool-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid;
+  }
+
+  /* ── FINAL NODE ── */
+  .final-node {
+    width: 100%; max-width: 560px;
+    background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(245,158,11,.05));
+    border: 2px solid var(--orange);
+    border-radius: 8px;
+    padding: 20px 24px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(245,158,11,.2);
+  }
+  .final-node .node-title { font-size: 18px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 64px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  /* responsive */
+  @media (max-width: 700px) {
+    .lanes { grid-template-columns: 1fr; }
+    .lane-label { display: none; }
+    .opd-grid { grid-template-columns: 1fr; }
+    .bifurc { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-tag">JIGN / JIGD — KABUPATEN SANGGAU</div>
+    <h1>Alur Entri Data Geospasial<br>dari Produsen Data ke JIGN Nasional</h1>
+    <p>Visualisasi alur lengkap proses pengumpulan, pengolahan, verifikasi, dan penyebarluasan data geospasial dari OPD produsen hingga terhubung ke Jaringan Informasi Geospasial Nasional (BIG).</p>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#2563eb"></div>Aktor / OPD</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div>Proses / Alat</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#8b5cf6"></div>Platform GeoNode/PALAPA</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>Simpul Jaringan / JIGN Nasional</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#06b6d4"></div>Protokol CSW / Harvest</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>Verifikasi / QC</div>
+  </div>
+
+  <!-- MAIN FLOW -->
+  <div class="lanes">
+
+    <!-- LEFT ANNOTATION -->
+    <div>
+      <div class="side-note" style="margin-top:80px">
+        <span>LEVEL OPD</span>
+        Unit Produksi Data<br>
+        (Pasal 6 Perbup 24/2020)
+      </div>
+      <div class="side-note" style="margin-top:180px">
+        <span>TOOLS LAPANGAN</span>
+        QGIS · ArcGIS<br>
+        GPS/drone survey<br>
+        ODK Collect<br>
+        Google Earth
+      </div>
+      <div class="side-note" style="margin-top:240px">
+        <span>FORMAT DATA</span>
+        .shp · .geojson<br>
+        .kml · .gpkg<br>
+        .tif (raster)<br>
+        + metadata ISO 19115
+      </div>
+      <div class="side-note" style="margin-top:260px">
+        <span>LEVEL DISKOMINFO</span>
+        Unit Pengelolaan &amp;<br>
+        Penyebarluasan<br>
+        (via server Diskominfo)
+      </div>
+      <div class="side-note" style="margin-top:320px">
+        <span>STANDAR OGC</span>
+        WMS — peta visual<br>
+        WFS — fitur vektor<br>
+        WCS — data raster<br>
+        CSW — katalog
+      </div>
+    </div>
+
+    <!-- CENTER FLOW -->
+    <div class="flow">
+
+      <!-- === TAHAP 1: PRODUSEN === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 1 — PRODUSEN DATA (OPD)</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <!-- OPD Grid -->
+      <div class="opd-grid">
+        <div class="opd-card">
+          <div class="opd-icon">🏗️</div>
+          <div><div class="opd-name">PUPR</div><div class="opd-type">Jalan · RTRW · Irigasi</div></div>
+        </div>
+        <div class="opd-card">
+          <div class="opd-icon">🌾</div>
+          <div><div class="opd-name">Pertanian</div><div class="opd-type">Lahan · Komoditas</div></div>
+        </div>
+        <div class="opd-card">
+          <div class="opd-icon">🏥</div>
+          <div><div class="opd-name">Kesehatan</div><div class="opd-type">Faskes · Sebaran penyakit</div></div>
+        </div>
+        <div class="opd-card">
+          <div class="opd-icon">📚</div>
+          <div><div class="opd-name">Pendidikan</div><div class="opd-type">Sekolah · Jangkauan</div></div>
+        </div>
+        <div class="opd-card">
+          <div class="opd-icon">🌿</div>
+          <div><div class="opd-name">LH / Kehutanan</div><div class="opd-type">Kawasan · Tutupan lahan</div></div>
+        </div>
+        <div class="opd-card">
+          <div class="opd-icon">🏘️</div>
+          <div><div class="opd-name">PMD / Perkim</div><div class="opd-type">Desa · Permukiman</div></div>
+        </div>
+      </div>
+
+      <div class="arrow-wrap arrow-green">
+        <div class="arrow-label">pengumpulan &amp; pengolahan data lapangan</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- === TAHAP 2: OLAH & DIGITASI === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 2 — PENGOLAHAN &amp; STANDARISASI</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <div class="node node-tool" style="max-width:560px">
+        <div class="node-tag c-green">// TOOLS PENGOLAHAN DATA</div>
+        <div class="node-title c-green">Digitasi &amp; Standarisasi Data</div>
+        <div class="node-sub">OPD mengolah data lapangan menjadi data geospasial terstandar menggunakan perangkat lunak GIS</div>
+        <div class="tool-list">
+          <span class="tool-pill bg-green">QGIS / ArcGIS</span>
+          <span class="tool-pill bg-green">GPS Survey</span>
+          <span class="tool-pill bg-green">Drone / Citra Satelit</span>
+          <span class="tool-pill bg-green">ODK Collect</span>
+        </div>
+        <div style="margin-top:10px; font-size:11px; color:var(--text-dim)">
+          Output: file .shp / .geojson / .kml + metadata ISO 19115
+        </div>
+      </div>
+
+      <div class="arrow-wrap arrow-blue">
+        <div class="arrow-label">submit ke Unit Pengelolaan (Bapperida/Diskominfo)</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- === TAHAP 3: UPLOAD KE GEONODE === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 3 — UPLOAD &amp; VERIFIKASI DI GEONODE</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <div class="node node-platform">
+        <div class="node-tag c-purple">// PLATFORM SIMPUL JARINGAN — geoportal.sanggau.go.id</div>
+        <div class="node-title c-purple">GeoNode / PALAPA</div>
+        <div class="node-sub">OPD login ke GeoNode dengan akun masing-masing dan mengunggah data geospasial beserta metadata</div>
+        <div class="tool-list">
+          <span class="tool-pill bg-purple">Upload Layer (.shp/.geojson)</span>
+          <span class="tool-pill bg-purple">Isi Metadata</span>
+          <span class="tool-pill bg-purple">Set Hak Akses</span>
+          <span class="tool-pill bg-purple">Publikasi</span>
+        </div>
+      </div>
+
+      <div class="arrow-wrap arrow-red">
+        <div class="arrow-label">verifikasi konten &amp; kualitas data</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- VERIFIKASI -->
+      <div class="node node-verify">
+        <div class="node-tag c-red">// QC — UNIT PENGELOLAAN</div>
+        <div class="node-title c-red">Verifikasi &amp; Quality Control</div>
+        <div class="node-sub">Unit Pengelolaan (Bapperida) memverifikasi kelengkapan metadata, standar struktur data, dan akurasi konten sesuai Perbup 24/2020 Pasal 7(2c)</div>
+        <div class="tool-list">
+          <span class="tool-pill bg-red">Cek Metadata</span>
+          <span class="tool-pill bg-red">Cek Struktur Data</span>
+          <span class="tool-pill bg-red">Cek Koordinat/Proyeksi</span>
+        </div>
+      </div>
+
+      <!-- BIFURC: LULUS / REVISI -->
+      <div class="fork"></div>
+      <div class="bifurc">
+        <div class="bifurc-col">
+          <div class="bifurc-label" style="color:#f87171">❌ TIDAK LULUS QC</div>
+          <div class="node node-verify" style="width:100%">
+            <div class="node-tag c-red">// REVISI</div>
+            <div class="node-title" style="font-size:13px; c-red">Kembalikan ke OPD</div>
+            <div class="node-sub">OPD memperbaiki data dan mengupload ulang</div>
+          </div>
+        </div>
+        <div class="bifurc-col">
+          <div class="bifurc-label" style="color:#34d399">✅ LULUS QC</div>
+          <div class="node node-tool" style="width:100%">
+            <div class="node-tag c-green">// APPROVED</div>
+            <div class="node-title" style="font-size:13px">Data Disetujui</div>
+            <div class="node-sub">Data tersimpan di GeoNode, siap dipublikasikan via layanan OGC</div>
+          </div>
+        </div>
+      </div>
+      <div class="fork-end"></div>
+
+      <div class="arrow-wrap arrow-purple">
+        <div class="arrow-label">publikasi layanan OGC (WMS / WFS / WCS)</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- === TAHAP 4: LAYANAN OGC === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 4 — PUBLIKASI LAYANAN OGC</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <div class="node node-platform">
+        <div class="node-tag c-purple">// GEOSERVER — engine di balik GeoNode</div>
+        <div class="node-title c-purple">GeoServer: Publikasi Layanan Standar</div>
+        <div class="node-sub">Data yang telah disetujui otomatis dipublikasikan oleh GeoServer sebagai layanan web standar OGC yang dapat dikonsumsi oleh aplikasi lain</div>
+        <div class="tool-list">
+          <span class="tool-pill bg-purple">WMS — peta visual</span>
+          <span class="tool-pill bg-purple">WFS — fitur vektor</span>
+          <span class="tool-pill bg-purple">WCS — data raster</span>
+        </div>
+        <div style="margin-top:10px; padding:8px 12px; background:rgba(139,92,246,.1); border-radius:4px; font-size:11px; color:#c4b5fd">
+          💡 Inilah yang seharusnya dikonsumsi oleh Bumidaranante — bukan input data sendiri
+        </div>
+      </div>
+
+      <div class="arrow-wrap arrow-cyan">
+        <div class="arrow-label">harvest otomatis via protokol CSW</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- === TAHAP 5: CSW HARVEST === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 5 — HARVEST CSW KE JIGN NASIONAL</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <div class="node node-csw">
+        <div class="node-tag c-cyan">// CSW — Catalogue Service for the Web</div>
+        <div class="node-title c-cyan">pyCSW: Katalog Metadata Standar</div>
+        <div class="node-sub">Komponen pyCSW di GeoNode/PALAPA menyediakan endpoint katalog metadata yang dapat diakses oleh sistem BIG secara otomatis. <strong style="color:#67e8f9">Data fisik tetap di server Sanggau</strong> — yang dipanen hanya katalog/referensinya.</div>
+        <div class="tool-list">
+          <span class="tool-pill bg-cyan">Endpoint CSW</span>
+          <span class="tool-pill bg-cyan">ISO 19115 Metadata</span>
+          <span class="tool-pill bg-cyan">Auto-harvest BIG</span>
+        </div>
+      </div>
+
+      <div class="arrow-wrap arrow-orange">
+        <div class="arrow-label">terdaftar &amp; terpantau di SIMOJANG</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <!-- === TAHAP 6: JIGN NASIONAL === -->
+      <div class="section-div">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">TAHAP 6 — JIGN NASIONAL (BIG)</div>
+        <div class="section-div-line"></div>
+      </div>
+
+      <div class="final-node">
+        <div class="node-tag c-orange" style="font-size:10px; letter-spacing:.15em">// BIG — BADAN INFORMASI GEOSPASIAL</div>
+        <div class="node-title c-orange">🌐 JIGN Nasional Terhubung</div>
+        <div style="margin:12px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:left">
+          <div style="background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:4px; padding:10px 12px">
+            <div style="font-family:var(--mono); font-size:9px; color:#fbbf24; margin-bottom:4px">INA-GEOPORTAL</div>
+            <div style="font-size:11px; color:var(--text-mid)">sanggaukab.ina-sdi.or.id</div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:2px">Katalog data Sanggau di portal nasional</div>
+          </div>
+          <div style="background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:4px; padding:10px 12px">
+            <div style="font-family:var(--mono); font-size:9px; color:#fbbf24; margin-bottom:4px">SIMOJANG</div>
+            <div style="font-size:11px; color:var(--text-mid)">simojang.big.go.id</div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:2px">Penilaian kinerja simpul jaringan</div>
+          </div>
+          <div style="background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:4px; padding:10px 12px">
+            <div style="font-family:var(--mono); font-size:9px; color:#fbbf24; margin-bottom:4px">PORTAL SDI</div>
+            <div style="font-size:11px; color:var(--text-mid)">data.go.id</div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:2px">Satu Data Indonesia nasional</div>
+          </div>
+        </div>
+        <div style="font-size:12px; color:var(--text-mid); border-top:1px solid rgba(245,158,11,.2); padding-top:12px; margin-top:4px">
+          Data geospasial Kabupaten Sanggau kini dapat ditemukan, diakses, dan diunduh oleh seluruh pemangku kepentingan nasional
+        </div>
+      </div>
+
+      <!-- NOTE BUMIDARANANTE -->
+      <div style="margin-top:24px; width:100%; max-width:560px">
+        <div style="font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:.1em; margin-bottom:8px">// POSISI BUMIDARANANTE DALAM ARSITEKTUR INI</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+          <div style="background:rgba(239,68,68,.06); border:1px solid rgba(239,68,68,.2); border-left:3px solid var(--red); border-radius:0 6px 6px 0; padding:12px 14px">
+            <div style="font-family:var(--mono); font-size:9px; color:#f87171; margin-bottom:6px">❌ KONDISI SAAT INI</div>
+            <div style="font-size:12px; color:var(--text-mid); line-height:1.6">Bumidaranante <strong style="color:#fca5a5">punya repositori data sendiri</strong> yang tidak terhubung ke GeoNode maupun BIG. Input data terpisah, tidak ada CSW, tidak masuk JIGN.</div>
+          </div>
+          <div style="background:rgba(16,185,129,.06); border:1px solid rgba(16,185,129,.2); border-left:3px solid var(--green); border-radius:0 6px 6px 0; padding:12px 14px">
+            <div style="font-family:var(--mono); font-size:9px; color:#34d399; margin-bottom:6px">✅ SEHARUSNYA</div>
+            <div style="font-size:12px; color:var(--text-mid); line-height:1.6">Bumidaranante mengonsumsi data via <strong style="color:#6ee7b7">WMS/WFS dari GeoNode</strong>. OPD input data sekali di GeoNode — otomatis muncul di Bumidaranante dan terhubung ke BIG.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end .flow -->
+
+    <!-- RIGHT ANNOTATION -->
+    <div>
+      <div class="side-note" style="margin-top:80px">
+        <span>PERBUP 24/2020</span>
+        Pasal 6 (2c):<br>
+        OPD wajib<br>
+        menyetor data ke<br>
+        Unit Pengelolaan
+      </div>
+      <div class="side-note" style="margin-top:360px">
+        <span>PERBUP 24/2020</span>
+        Pasal 7:<br>
+        Bapperida sebagai<br>
+        Unit Pengelolaan &amp;<br>
+        Penyebarluasan
+      </div>
+      <div class="side-note" style="margin-top:200px">
+        <span>DOMAIN DISKOMINFO</span>
+        Server, infrastruktur,<br>
+        dan konektivitas<br>
+        ke BIG ada di<br>
+        Diskominfo (TIK)
+      </div>
+      <div class="side-note" style="margin-top:220px">
+        <span>KUNCI INTEGRASI</span>
+        Tanpa CSW,<br>
+        tidak ada harvest<br>
+        otomatis ke BIG.<br>
+        PHP custom =<br>
+        tidak ada CSW.
+      </div>
+      <div class="side-note" style="margin-top:120px">
+        <span>BHUMANDALA</span>
+        Penilaian SIMOJANG<br>
+        mencakup apakah<br>
+        simpul terdaftar<br>
+        dan aktif di<br>
+        jaringan nasional
+      </div>
+    </div>
+
+  </div><!-- end .lanes -->
+
+  <div class="footer">
+    Diskominfo Kabupaten Sanggau — Bidang Aptika · 2025<br>
+    Referensi: Perpres 27/2014 · Perbup 24/2020 · Petunjuk Teknis BIG · GeoNode Documentation
+  </div>
+
+</div>
+</body>
+</html>
